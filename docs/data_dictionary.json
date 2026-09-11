@@ -1,0 +1,114 @@
+{
+  "gold.customer_orders": {
+    "caveats": [
+      "Despite the table name, deduplication upstream (clean_dataframe with source_key_columns=['customer_id']) keeps only one row per customer_id, not one row per order. A customer with multiple orders is not fully represented.",
+      "region enum values have not been confirmed against the source system; treat as free text."
+    ],
+    "columns": [
+      {
+        "description": "Unique identifier for the customer who placed the order.",
+        "name": "customer_id",
+        "type": "int",
+        "unit": null,
+        "valid_range": ">= 1, non-null",
+        "valid_values": null
+      },
+      {
+        "description": "Customer's display name.",
+        "name": "customer_name",
+        "type": "string",
+        "unit": null,
+        "valid_range": null,
+        "valid_values": null
+      },
+      {
+        "description": "Sales region the order belongs to.",
+        "name": "region",
+        "type": "string",
+        "unit": null,
+        "valid_range": null,
+        "valid_values": null
+      },
+      {
+        "description": "Total order amount.",
+        "name": "amount",
+        "type": "decimal(18,2)",
+        "unit": "USD (assumed \u2014 confirm currency with source system)",
+        "valid_range": ">= 0",
+        "valid_values": null
+      },
+      {
+        "description": "Date the order was placed.",
+        "name": "order_date",
+        "type": "date",
+        "unit": null,
+        "valid_range": "not in the future",
+        "valid_values": null
+      }
+    ],
+    "comment": "Business-ready customer order data for downstream reporting and analytics.",
+    "freshness": "Updated daily by the `customer-bronze-to-gold` Prefect deployment (cron 0 2 * * * UTC).",
+    "generated_at": "2026-09-11T20:12:21.919364+00:00",
+    "grain": "One row per customer_id.",
+    "primary_key": [
+      "customer_id"
+    ],
+    "table": "gold.customer_orders"
+  },
+  "silver.customer_orders": {
+    "caveats": [
+      "Despite covering 'orders', deduplication is keyed only on customer_id (clean_dataframe with source_key_columns=['customer_id']), so there is at most one row per customer, not one row per order.",
+      "region enum values have not been confirmed against the source system; treat as free text."
+    ],
+    "columns": [
+      {
+        "description": "Unique identifier for the customer who placed the order.",
+        "name": "customer_id",
+        "type": "int",
+        "unit": null,
+        "valid_range": ">= 1, non-null",
+        "valid_values": null
+      },
+      {
+        "description": "Customer's display name.",
+        "name": "customer_name",
+        "type": "string",
+        "unit": null,
+        "valid_range": null,
+        "valid_values": null
+      },
+      {
+        "description": "Sales region the order belongs to.",
+        "name": "region",
+        "type": "string",
+        "unit": null,
+        "valid_range": null,
+        "valid_values": null
+      },
+      {
+        "description": "Order amount, cleaned and cast from the bronze source.",
+        "name": "amount",
+        "type": "decimal(18,2)",
+        "unit": "USD (assumed \u2014 confirm currency with source system)",
+        "valid_range": ">= 0",
+        "valid_values": null
+      },
+      {
+        "description": "Date the order was placed.",
+        "name": "order_date",
+        "type": "date",
+        "unit": null,
+        "valid_range": "not in the future",
+        "valid_values": null
+      }
+    ],
+    "comment": "Cleaned, validated, and deduplicated customer order data (bronze to silver).",
+    "freshness": "Updated daily by the `customer-bronze-to-gold` Prefect deployment (cron 0 2 * * * UTC), ahead of the gold stage.",
+    "generated_at": "2026-09-11T20:12:19.491863+00:00",
+    "grain": "One row per customer_id.",
+    "primary_key": [
+      "customer_id"
+    ],
+    "table": "silver.customer_orders"
+  }
+}
