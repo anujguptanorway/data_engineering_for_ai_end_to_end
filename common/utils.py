@@ -165,47 +165,6 @@ def validate_required_columns(df: DataFrame, required_columns: Iterable[str]) ->
     logger.info("All required columns are present: %s", sorted(normalized_required_columns))
 
 
-def apply_expected_casts(df: DataFrame, expected_types: Optional[Dict[str, str]] = None) -> DataFrame:
-    """Cast chosen columns to the requested Spark SQL types."""
-    if expected_types is None:
-        return df
-    logger.info("Applying expected casts: %s", expected_types)
-    typed_df = df
-    for column_name, target_type in expected_types.items():
-        if column_name in typed_df.columns:
-            typed_df = typed_df.withColumn(column_name, F.col(column_name).cast(target_type))
-    return typed_df
-
-
-def clean_dataframe(
-    df: DataFrame,
-    source_key_columns: Optional[List[str]] = None,
-    required_columns: Optional[List[str]] = None,
-    expected_types: Optional[Dict[str, str]] = None,
-) -> DataFrame:
-    """Trim string values, remove null rows, and drop duplicate rows."""
-    if required_columns:
-        validate_required_columns(df, required_columns)
-
-    typed_df = apply_expected_casts(df, expected_types)
-    string_columns = [
-        field.name for field in typed_df.schema.fields if isinstance(field.dataType, StringType)
-    ]
-
-    cleaned_df = typed_df
-    for column_name in string_columns:
-        cleaned_df = cleaned_df.withColumn(
-            column_name,
-            F.when(F.trim(F.col(column_name)) == "", F.lit(None)).otherwise(F.trim(F.col(column_name))),
-        )
-
-    non_null_expression = [F.col(column_name).isNotNull() for column_name in cleaned_df.columns]
-    if non_null_expression:
-        cleaned_df = cleaned_df.filter(F.coalesce(*non_null_expression))
-
-    dedup_columns = source_key_columns or cleaned_df.columns
-    return cleaned_df.dropDuplicates(dedup_columns)
-
 
 def compute_quality_report(rows_before: int, rows_after: int, duplicates_removed: int = 0) -> dict:
     """Create a standard quality report dictionary for pytest assertions and notebook output."""
@@ -226,6 +185,41 @@ def get_null_counts(df: DataFrame) -> DataFrame:
         for column_name in df.columns
     ]
     return df.agg(*null_count_expressions) if null_count_expressions else df.limit(0)
+
+
+def remove_duplicates(df: DataFrame, subset_columns: Optional[List[str]] = None) -> DataFrame:
+    """Drop duplicate rows, optionally keyed on a subset of columns."""
+    deduped_df = df.dropDuplicates(subset_columns) if subset_columns else df.dropDuplicates()
+    logger.info("Removed duplicates on: %s", subset_columns or "all columns")
+    return deduped_df
+
+
+def get_duplicate_rows(df: DataFrame, subset_columns: Optional[List[str]] = None) -> DataFrame:
+    """Return rows whose key (subset_columns, or all columns) appears more than once."""
+    key_columns = subset_columns or df.columns
+    counts_df = df.groupBy(*key_columns).agg(F.count(F.lit(1)).alias("_duplicate_count"))
+    duplicate_keys_df = counts_df.filter(F.col("_duplicate_count") > 1).drop("_duplicate_count")
+    return df.join(duplicate_keys_df, on=key_columns, how="inner")
+
+def required_columns(column_config: dict) -> list[str]:
+    return [config["source"] for config in column_config.values() if config.get("is_required")]
+
+def group_by_agg(
+    df: DataFrame,
+    group_by_columns: List[str],
+    agg_columns: Dict[str, str],
+) -> DataFrame:
+    """Group by given columns and aggregate others.
+
+    agg_columns maps a column name to a Spark agg function name, e.g.
+    {"amount": "sum", "customer_id": "count"}. Result columns are named
+    f"{agg_func}_{column}", e.g. "sum_amount".
+    """
+    agg_expressions = [
+        getattr(F, agg_func)(F.col(column_name)).alias(f"{agg_func}_{column_name}")
+        for column_name, agg_func in agg_columns.items()
+    ]
+    return df.groupBy(*group_by_columns).agg(*agg_expressions)
 
 
 def write_output(df: DataFrame, output_path: str, mode: str = "overwrite") -> int:

@@ -6,7 +6,7 @@ push: null
 
 pull:
   - prefect.deployments.steps.set_working_directory:
-      directory: /path/to/data_end_to_end # replace with this repo's absolute path on the deploying machine
+      directory: /Users/Anuj.Kumar.Gupta@telenor.com/data_end_to_end # replace with this repo's absolute path on the deploying machine
 
 deployments:
   - name: customer-bronze-to-gold

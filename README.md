@@ -21,7 +21,7 @@ orchestrated as a Prefect flow.
 | --- | --- | --- |
 | Runtime configuration | Load environment variables and define project paths | `.env`, `common/spark.py` |
 | Spark infrastructure | Create a Spark session configured for MinIO/S3A | `common/spark.py` |
-| Shared transformations | Load, validate, cast, clean, and write DataFrames | `common/utils.py` |
+| Shared transformations | Load, validate, deduplicate, aggregate, and write DataFrames | `common/utils.py` |
 | Domain transformations | Apply customer-specific Bronze-to-Silver and Silver-to-Gold rules | `transformations/customer/` |
 | Orchestration | Run transformations as retryable Prefect tasks and flows | `prefect/flows/` |
 | Deployment | Define the Prefect deployment, schedule, and work pool | `prefect.yaml` |
@@ -53,23 +53,23 @@ orchestrated as a Prefect flow.
 ### Data layers
 
 - **Bronze** contains source-aligned data with minimal transformation.
-- **Silver** contains cleaned, validated, deduplicated, and typed data.
-- **Gold** contains business-ready data prepared for downstream consumers.
+- **Silver** contains deduplicated, validated customer-order data.
+- **Gold** contains business-ready, region-level aggregates prepared for downstream consumers.
 
 The current customer pipeline uses these default locations:
 
 ```text
 s3a://<MINIO_BUCKET>/bronze/input.csv
 s3a://<MINIO_BUCKET>/silver/customer_orders
-s3a://<MINIO_BUCKET>/gold/customer_orders
+s3a://<MINIO_BUCKET>/gold/region_order_summary
 ```
 
 Paths can be overridden through Prefect deployment parameters or direct
 function arguments.
 
 Silver and Gold are also registered as Spark SQL catalog tables
-(`silver.customer_orders`, `gold.customer_orders`) with per-column `COMMENT`s,
-not just raw Parquet at the paths above — see
+(`silver.customer_orders`, `gold.region_order_summary`) with per-column
+`COMMENT`s, not just raw Parquet at the paths above — see
 [Data Dictionary and Agentic AI Compatibility](#data-dictionary-and-agentic-ai-compatibility).
 
 ## Project Structure
@@ -93,7 +93,9 @@ prefect/
 
 tests/
   conftest.py                      Shared Spark test fixture
-  test_transformation.py           Transformation tests
+  test_utils.py                    common/utils.py unit tests
+  test_transformations/
+    test_customer_flow.py          Bronze-to-Silver / Silver-to-Gold flow tests
   fixtures/                        CSV and Parquet test data
 
 docs/
@@ -157,7 +159,7 @@ Direct execution uses the default S3A paths. For reusable application code,
 call `run_transformation_clean(input_path, output_path)` with explicit paths.
 
 Each run also registers the target as a catalog table (`silver.customer_orders`
-or `gold.customer_orders`) and regenerates `docs/data_dictionary.md` /
+or `gold.region_order_summary`) and regenerates `docs/data_dictionary.md` /
 `docs/data_dictionary.json`, so the schema docs never drift from what was
 actually written. See
 [Data Dictionary and Agentic AI Compatibility](#data-dictionary-and-agentic-ai-compatibility).
@@ -188,6 +190,8 @@ prefect worker start --pool "local_workpool"
 ```
 Keep this terminal running. The worker polls the work pool and executes flow
 runs submitted by Prefect.
+
+![work pool](images/work-pool.png)
 
 ### Run the Prefect flow locally
 
@@ -226,7 +230,6 @@ parallel with the main Bronze-to-Silver-to-Gold chain.
 The deployment in `prefect.yaml` is scheduled for 02:00 UTC and targets the
 `local_workpool` work pool. Register it with the local Prefect server:
 
-![work pool](images/work-pool.png)
 
 ```bash
 prefect deploy --all
@@ -277,8 +280,8 @@ Every Silver and Gold run does two things beyond writing Parquet:
 2. **Regenerates the data dictionary** via `build_data_dictionary_entry` +
    `write_data_dictionary`, which read that catalog metadata back out and merge
    it with curated metadata defined in each transformation module
-   (`SILVER_COLUMN_CONFIG`/`GOLD_COLUMN_CONFIG` and
-   `SILVER_TABLE_METADATA`/`GOLD_TABLE_METADATA`):
+   (`SILVER_COLUMN_CONFIG`/`GOLD_REGION_SUMMARY_COLUMN_CONFIG` and
+   `SILVER_TABLE_METADATA`/`GOLD_REGION_SUMMARY_METADATA`):
    - **Grain** and **primary key** — what one row represents.
    - **Freshness** — the Prefect schedule that keeps the table current.
    - **Column-level description, unit, valid range/enum.**
@@ -338,7 +341,7 @@ select several tests because those tests all depend on that utility.
 For one exact test, use its node ID:
 
 ```bash
-pytest tests/test_transformation.py::test_clean_dataframe_trims_and_deduplicates
+pytest tests/test_transformations/test_customer_flow.py::TestSilverToGoldFlow::test_silver_to_gold_region_totals
 ```
 
 ## Continuous Integration
@@ -362,7 +365,8 @@ Other useful commands:
 ```bash
 pytest --collect-only -q           # list discovered tests
 pytest -vv                         # show each test name and result
-pytest tests/test_transformation.py
+pytest tests/test_utils.py
+pytest tests/test_transformations/test_customer_flow.py
 ```
 
 ## Adding a New Domain
