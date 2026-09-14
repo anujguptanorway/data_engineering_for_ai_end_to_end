@@ -55,6 +55,43 @@
     ],
     "table": "gold.customer_orders"
   },
+  "gold.region_order_summary": {
+    "caveats": [],
+    "columns": [
+      {
+        "description": "Sales region the order belongs to.",
+        "name": "region",
+        "type": "string",
+        "unit": null,
+        "valid_range": null,
+        "valid_values": null
+      },
+      {
+        "description": "Sum of order amounts for the region.",
+        "name": "sum_amount",
+        "type": "decimal(18,2)",
+        "unit": null,
+        "valid_range": null,
+        "valid_values": null
+      },
+      {
+        "description": "Sum of order amounts for the region, doubled.",
+        "name": "sum_amount_doubled",
+        "type": "decimal(18,2)",
+        "unit": null,
+        "valid_range": null,
+        "valid_values": null
+      }
+    ],
+    "comment": "Region-level order amount totals, derived from gold.customer_orders.",
+    "freshness": "",
+    "generated_at": "2026-09-14T10:13:04.784060+00:00",
+    "grain": "One row per region.",
+    "primary_key": [
+      "region"
+    ],
+    "table": "gold.region_order_summary"
+  },
   "silver.customer_orders": {
     "caveats": [
       "Despite covering 'orders', deduplication is keyed only on customer_id (clean_dataframe with source_key_columns=['customer_id']), so there is at most one row per customer, not one row per order.",
@@ -78,14 +115,6 @@
         "valid_values": null
       },
       {
-        "description": "Sales region the order belongs to.",
-        "name": "region",
-        "type": "string",
-        "unit": null,
-        "valid_range": null,
-        "valid_values": null
-      },
-      {
         "description": "Order amount, cleaned and cast from the bronze source.",
         "name": "amount",
         "type": "decimal(18,2)",
@@ -100,11 +129,19 @@
         "unit": null,
         "valid_range": "not in the future",
         "valid_values": null
+      },
+      {
+        "description": "Sales region the order belongs to.",
+        "name": "region",
+        "type": "string",
+        "unit": null,
+        "valid_range": null,
+        "valid_values": null
       }
     ],
     "comment": "Cleaned, validated, and deduplicated customer order data (bronze to silver).",
     "freshness": "Updated daily by the `customer-bronze-to-gold` Prefect deployment (cron 0 2 * * * UTC), ahead of the gold stage.",
-    "generated_at": "2026-09-11T20:12:19.491863+00:00",
+    "generated_at": "2026-09-14T09:58:24.447756+00:00",
     "grain": "One row per customer_id.",
     "primary_key": [
       "customer_id"
