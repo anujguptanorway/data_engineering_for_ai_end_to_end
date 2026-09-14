@@ -347,7 +347,7 @@ pytest tests/test_transformations/test_customer_flow.py::TestSilverToGoldFlow::t
 ## Continuous Integration
 
 GitHub Actions runs the test suite automatically via `.github/workflows/ci.yml`
-on every push and pull request targeting `main`. The `test` job:
+on every push and pull request targeting `master`. The `test` job:
 
 - Sets up Java 17 (Temurin), required by PySpark, and Python 3.11.
 - Installs `requirements.txt` and the project itself (`pip install -e .`).
