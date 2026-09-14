@@ -6,7 +6,28 @@ build-backend = "setuptools.build_meta"
 name = "data-end-to-end"
 version = "0.1.0"
 requires-python = ">=3.11"
+dependencies = [
+    "prefect==3.8.5",
+    "pyspark==3.5.5",
+    "pytest==9.1.1",
+    "pytest-testmon==2.2.0",
+    "python-dotenv==1.2.3",
+    "ipykernel==6.27.0",
+]
 
 [tool.setuptools.packages.find]
 include = ["common*", "transformations*"]
 exclude = ["tests*", "prefect*"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.7",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+exclude = ["spark-warehouse", "metastore_db"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

@@ -85,7 +85,7 @@
     ],
     "comment": "Region-level order amount totals, derived from gold.customer_orders.",
     "freshness": "",
-    "generated_at": "2026-09-14T10:13:04.784060+00:00",
+    "generated_at": "2026-09-14T12:06:09.145277+00:00",
     "grain": "One row per region.",
     "primary_key": [
       "region"
@@ -141,7 +141,7 @@
     ],
     "comment": "Cleaned, validated, and deduplicated customer order data (bronze to silver).",
     "freshness": "Updated daily by the `customer-bronze-to-gold` Prefect deployment (cron 0 2 * * * UTC), ahead of the gold stage.",
-    "generated_at": "2026-09-14T09:58:24.447756+00:00",
+    "generated_at": "2026-09-14T12:06:06.259521+00:00",
     "grain": "One row per customer_id.",
     "primary_key": [
       "customer_id"

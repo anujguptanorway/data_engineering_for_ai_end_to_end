@@ -8,7 +8,6 @@ from typing import Dict, Iterable, List, Optional
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import StringType
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,6 @@ def load_dataframe(
         source_path = Path(input_path)
         if not source_path.exists():
             raise FileNotFoundError(f"Input not found: {source_path.resolve()}")
-
     options = csv_options or {"header": "true", "inferSchema": "true"}
 
     reader = spark.read.options(**options) if input_format == "csv" else spark.read
