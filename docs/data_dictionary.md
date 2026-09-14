@@ -29,7 +29,7 @@ Region-level order amount totals, derived from gold.customer_orders.
 - **Grain:** One row per region.
 - **Primary key:** region
 - **Freshness:** _not set_
-- **Generated at:** 2026-09-14T10:13:04.784060+00:00
+- **Generated at:** 2026-09-14T12:06:09.145277+00:00
 
 | Column | Type | Description | Unit | Valid values | Valid range |
 | --- | --- | --- | --- | --- | --- |
@@ -44,7 +44,7 @@ Cleaned, validated, and deduplicated customer order data (bronze to silver).
 - **Grain:** One row per customer_id.
 - **Primary key:** customer_id
 - **Freshness:** Updated daily by the `customer-bronze-to-gold` Prefect deployment (cron 0 2 * * * UTC), ahead of the gold stage.
-- **Generated at:** 2026-09-14T09:58:24.447756+00:00
+- **Generated at:** 2026-09-14T12:06:06.259521+00:00
 - **Caveats:**
   - Despite covering 'orders', deduplication is keyed only on customer_id (clean_dataframe with source_key_columns=['customer_id']), so there is at most one row per customer, not one row per order.
   - region enum values have not been confirmed against the source system; treat as free text.

@@ -104,12 +104,12 @@ docs/
 
 experiment.ipynb                   Interactive Spark exploration
 prefect.yaml                       Prefect deployment configuration
-pyproject.toml                     Python package metadata
-requirements.txt                   Direct project dependencies
+pyproject.toml                     Python package metadata and dependencies
+uv.lock                           Locked, reproducible dependency versions (uv)
 spark-warehouse/                   Local Spark warehouse for managed tables
 
 .github/
-  workflows/ci.yml                 GitHub Actions CI (installs deps, runs pytest)
+  workflows/ci.yml                 GitHub Actions CI (installs deps via uv, runs pytest)
 ```
 
 ## Configuration
@@ -133,16 +133,23 @@ use. For the local Docker Compose server, it should be
 
 ## Installation
 
-Use a project virtual environment:
+This project uses [`uv`](https://docs.astral.sh/uv/) for dependency management.
+Install it once ([instructions](https://docs.astral.sh/uv/getting-started/installation/)),
+then sync the project's environment:
 
 ```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
+uv sync
 ```
 
-The requirements file lists direct dependencies only. Packages required by
-Prefect, PySpark, pytest, and testmon are installed automatically by pip.
+`uv sync` creates `.venv` (pinned to the versions in `uv.lock`) and installs
+the project itself in editable mode — no separate `pip install -e .` step is
+needed. Dependencies are declared in `pyproject.toml`; `uv.lock` pins the full,
+reproducible dependency graph. After a change to `pyproject.toml`'s
+dependencies, run `uv lock` to update `uv.lock`, then `uv sync`.
+
+You can still `source .venv/bin/activate` as usual, or prefix commands with
+`uv run` (e.g. `uv run pytest`) to run them inside the project's environment
+without activating it.
 
 ## Running the Framework
 
@@ -324,14 +331,13 @@ correctly instead of guessing:
 Run the complete suite:
 
 ```bash
-source .venv/bin/activate
-pytest
+uv run pytest
 ```
 
 Run only tests affected by changed code with `pytest-testmon`:
 
 ```bash
-pytest --testmon
+uv run pytest --testmon
 ```
 
 The first testmon run builds its execution map. Later runs select tests based
@@ -341,7 +347,22 @@ select several tests because those tests all depend on that utility.
 For one exact test, use its node ID:
 
 ```bash
-pytest tests/test_transformations/test_customer_flow.py::TestSilverToGoldFlow::test_silver_to_gold_region_totals
+uv run pytest tests/test_transformations/test_customer_flow.py::TestSilverToGoldFlow::test_silver_to_gold_region_totals
+```
+
+### Linting
+
+[`ruff`](https://docs.astral.sh/ruff/) is a dev dependency (`uv add --dev ruff`,
+configured under `[tool.ruff]` in `pyproject.toml`). Run it locally with:
+
+```bash
+uv run ruff check .
+```
+
+Add `--fix` to auto-apply fixable violations (import sorting, unused imports, etc.):
+
+```bash
+uv run ruff check --fix .
 ```
 
 ## Continuous Integration
@@ -349,11 +370,14 @@ pytest tests/test_transformations/test_customer_flow.py::TestSilverToGoldFlow::t
 GitHub Actions runs the test suite automatically via `.github/workflows/ci.yml`
 on every push and pull request targeting `master`. The `test` job:
 
-- Sets up Java 17 (Temurin), required by PySpark, and Python 3.11.
-- Installs `requirements.txt` and the project itself (`pip install -e .`).
+- Sets up Java 17 (Temurin), required by PySpark.
+- Sets up `uv` (`astral-sh/setup-uv`), which also provisions Python 3.11.
+- Installs dependencies with `uv sync --locked`, which fails the build if
+  `uv.lock` is out of sync with `pyproject.toml`.
 - Sets `SPARK_LOCAL_IP=127.0.0.1` so Spark's local-mode driver binds to
   loopback instead of trying to resolve the runner's network address.
-- Runs `pytest`.
+- Lints with `uv run ruff check .`.
+- Runs `uv run pytest`.
 
 There is currently no CI deployment step. `prefect deploy --all` is run
 manually from a machine that can reach the local Prefect server and worker,
@@ -363,10 +387,10 @@ since both currently run only on the developer's own machine (see
 Other useful commands:
 
 ```bash
-pytest --collect-only -q           # list discovered tests
-pytest -vv                         # show each test name and result
-pytest tests/test_utils.py
-pytest tests/test_transformations/test_customer_flow.py
+uv run pytest --collect-only -q    # list discovered tests
+uv run pytest -vv                  # show each test name and result
+uv run pytest tests/test_utils.py
+uv run pytest tests/test_transformations/test_customer_flow.py
 ```
 
 ## Adding a New Domain
