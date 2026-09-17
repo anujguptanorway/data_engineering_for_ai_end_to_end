@@ -61,7 +61,7 @@ def run_transformation_clean(input_path: str, output_path: str) -> dict:
         source_df = load_dataframe(spark, input_path, "parquet")
         cleaned_df = remove_duplicates(source_df, subset_columns=["customer_id"])
         null_counts = get_null_counts(source_df)
-        print("Null after before cleaning:")
+        print("Null count after cleaning:")
         null_counts.show()
         regional_totals = group_by_agg(cleaned_df, ["region"], {"amount": "sum"})
         regional_totals = regional_totals.withColumn("sum_amount_doubled", F.col("sum_amount") * 2)
