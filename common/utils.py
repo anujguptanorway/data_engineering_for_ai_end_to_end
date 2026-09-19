@@ -25,7 +25,6 @@ def load_dataframe(
         if not source_path.exists():
             raise FileNotFoundError(f"Input not found: {source_path.resolve()}")
     options = csv_options or {"header": "true", "inferSchema": "true"}
-
     reader = spark.read.options(**options) if input_format == "csv" else spark.read
     return reader.format(input_format).load(input_path)
 
