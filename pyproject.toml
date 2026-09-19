@@ -21,6 +21,7 @@ exclude = ["tests*", "prefect*"]
 
 [dependency-groups]
 dev = [
+    "duckdb>=1.5.5",
     "ruff>=0.16.7",
 ]
 

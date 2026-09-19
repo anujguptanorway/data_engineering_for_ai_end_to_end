@@ -79,6 +79,7 @@ common/
   spark.py                         Spark session and environment configuration
   utils.py                         Shared DataFrame operations, catalog table registration, and
                                     data dictionary generation
+  duckdb_inspect.py                Lightweight DuckDB-based Parquet browser for MinIO (no Spark)
 
 transformations/
   customer/
@@ -325,6 +326,46 @@ correctly instead of guessing:
 - **No doc drift:** because the dictionary regenerates from the live schema on
   every run, an agent reading it is reading the same contract the data was
   actually written under.
+
+## Exploring Tables with DuckDB (no Spark required)
+
+`common/duckdb_inspect.py` lets you browse the Parquet tables written to MinIO
+without starting a SparkSession (no JVM, no `hadoop-aws`/`aws-java-sdk-bundle`
+download). It connects to MinIO through DuckDB's `httpfs` extension, using a
+`CREATE SECRET` (rather than `SET s3_*`) so the credentials are visible to
+every query session, including the web UI's.
+
+It discovers every Parquet table under `s3://<MINIO_BUCKET>/**/*.parquet` and registers each as a DuckDB view named `<layer>.<table>` — e.g.
+`silver.customer_data`, `silver.customer_orders`, `gold.region_order_summary`
+— mirroring the `bronze/silver/gold` folder layout as DuckDB schemas.
+
+Print a schema + row count + sample rows for every table:
+
+```bash
+source .venv/bin/activate
+source .env
+python -m common.duckdb_inspect
+```
+
+Open the official DuckDB web UI (schema browser + SQL editor + results grid)
+at `http://localhost:4213`:
+
+```bash
+source .venv/bin/activate
+source .env
+python -m common.duckdb_inspect --ui
+```
+![DuckDB UI](images/DuckDB.png)
+
+Query the views directly by name, e.g. `SELECT * FROM silver.customer_data`.
+The command blocks on a prompt — press Enter in that terminal to stop the UI
+server. If a previous server is still holding port 4213 (e.g. left running in
+a background terminal), free it first:
+
+```bash
+lsof -nP -iTCP:4213 -sTCP:LISTEN
+kill -9 <pid>
+```
 
 ## Testing Strategy
 
